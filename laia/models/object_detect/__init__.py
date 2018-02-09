@@ -1,1 +1,1 @@
-from object_counting import ObjectCounting
+from .object_counting import ObjectCounting

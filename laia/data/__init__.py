@@ -1,5 +1,5 @@
-from image_dataset import ImageDataset
-from text_image_dataset import TextImageDataset
-from text_image_from_text_table_dataset import TextImageFromTextTableDataset
-from padding_collater import PaddedTensor, PaddingCollater
-from rectangles_image_dataset import RectanglesImageDataset
+from .image_dataset import ImageDataset
+from .text_image_dataset import TextImageDataset
+from .text_image_from_text_table_dataset import TextImageFromTextTableDataset
+from .padding_collater import PaddedTensor, PaddingCollater
+#from .rectangles_image_dataset import RectanglesImageDataset

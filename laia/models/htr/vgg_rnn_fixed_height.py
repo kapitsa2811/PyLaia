@@ -4,7 +4,7 @@ import torch.nn.functional as F
 
 from .conv_block import ConvBlock
 from torch.nn.utils.rnn import PackedSequence, pack_padded_sequence
-from laia.data import PaddedTensor
+from ...data import PaddedTensor
 
 class VggRnnFixedHeight(nn.Module):
     def __init__(self, input_height, num_input_channels, num_output_labels,
