@@ -1,22 +1,22 @@
 from __future__ import absolute_import
 
-from typing import Optional, Callable
+from typing import Optional, Callable, Sequence
 
 import torch
 from torch.nn.functional import sigmoid
 
-import laia.logging as log
+import laia.common.logging as log
 from laia.engine import Evaluator, Trainer
 from laia.engine.engine import ITER_END, EPOCH_END
-from laia.engine.feeders import ImageFeeder, ItemFeeder, PHOCFeeder, VariableFeeder
+from laia.engine.feeders import ImageFeeder, ItemFeeder, PHOCFeeder, TensorFeeder
 from laia.experiments import Experiment
 from laia.hooks import action
-from laia.hooks.meters import PairwiseAveragePrecisionMeter, Meter
+from laia.meters import PairwiseAveragePrecisionMeter, Meter
 
 _logger = log.get_logger(__name__)
 
 
-class PhocExperiment(Experiment):
+class PHOCExperiment(Experiment):
     r"""Wrapper to perform KWS experiments with PHOC networks."""
 
     def __init__(
@@ -43,7 +43,7 @@ class PhocExperiment(Experiment):
         ),  # type: Sequence[str]
     ):
         # type: (...) -> None
-        super(PhocExperiment, self).__init__(
+        super(PHOCExperiment, self).__init__(
             train_engine,
             valid_engine=valid_engine,
             check_valid_hook_when=check_valid_hook_when,
@@ -66,7 +66,7 @@ class PhocExperiment(Experiment):
             )
         if not self._tr_engine.batch_target_fn:
             self._tr_engine.set_batch_target_fn(
-                VariableFeeder(
+                TensorFeeder(
                     device=gpu,
                     parent_feeder=PHOCFeeder(
                         syms=symbols_table,
@@ -103,7 +103,7 @@ class PhocExperiment(Experiment):
 
     @action
     def valid_reset_meters(self):
-        super(PhocExperiment, self).valid_reset_meters()
+        super(PHOCExperiment, self).valid_reset_meters()
         self._va_ap.reset()
 
     @action
@@ -118,14 +118,12 @@ class PhocExperiment(Experiment):
         self._va_loss.add(batch_loss)
 
         batch_output_phoc = sigmoid(batch_output.data)
-        self._va_ap.add(
-            batch_output_phoc.cpu().numpy(), ["".join(w) for w in batch["txt"]]
-        )
+        self._va_ap.add(batch_output_phoc.numpy(), ["".join(w) for w in batch["txt"]])
         self._va_timer.stop()
 
     def epoch_summary(self, summary_order=None):
         # type: (Optional[Sequence[str]]) -> List[dict]
-        summary = super(PhocExperiment, self).epoch_summary(summary_order=summary_order)
+        summary = super(PHOCExperiment, self).epoch_summary(summary_order=summary_order)
         if self._va_engine:
             summary.append(
                 dict(label="VA gAP", format="{.value[0]:5.1%}", source=self._va_ap)
@@ -141,7 +139,7 @@ class PhocExperiment(Experiment):
 
     def state_dict(self):
         # type: () -> dict
-        state = super(PhocExperiment, self).state_dict()
+        state = super(PHOCExperiment, self).state_dict()
         if hasattr(self._va_ap, "state_dict"):
             state["va_ap"] = self._va_ap.state_dict()
         return state
@@ -150,6 +148,6 @@ class PhocExperiment(Experiment):
         # type: (dict) -> None
         if state is None:
             return
-        super(PhocExperiment, self).load_state_dict(state)
+        super(PHOCExperiment, self).load_state_dict(state)
         if hasattr(self._va_ap, "load_state_dict"):
             self._va_ap.load_state_dict(state["va_ap"])

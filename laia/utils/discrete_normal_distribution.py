@@ -1,8 +1,9 @@
 import math
 
 from numpy import logaddexp
+from torch._six import inf
 
-import laia.logging as log
+import laia.common.logging as log
 
 _logger = log.get_logger(__name__)
 
@@ -51,7 +52,4 @@ class DiscreteNormalDistribution(object):
         return math.exp(self.log_pdf(x))
 
     def log_pdf(self, x):
-        if x < 0.0:
-            return -float("inf")
-        else:
-            return self.__unorm_log_pdf(x) - self._log_z
+        return -inf if x < 0.0 else self.__unorm_log_pdf(x) - self._log_z

@@ -1,25 +1,38 @@
 from __future__ import absolute_import
 
 __all__ = [
+    "common",
+    "conditions",
     "data",
     "decoders",
     "engine",
-    "logging",
-    "losses",
+    "experiments",
     "hooks",
-    "plugins",
-    "random",
+    "losses",
+    "losses",
+    "meters",
+    "models",
+    "nn",
     "utils",
 ]
 
+import laia.common
+import laia.conditions
 import laia.data
 import laia.decoders
 import laia.engine
-import laia.logging
-import laia.losses
+import laia.experiments
 import laia.hooks
-import laia.hooks.conditions
-import laia.hooks.meters
-import laia.plugins
-import laia.random
-import laia.utils
+import laia.losses
+import laia.meters
+import laia.models
+import laia.nn
+
+try:
+    from laia.version import __full_version__, __version__, __branch__, __commit__
+except ImportError:
+    # TODO: Get values from functions used in setup.py
+    __full_version__ = None
+    __version__ = None
+    __branch__ = None
+    __commit__ = None
