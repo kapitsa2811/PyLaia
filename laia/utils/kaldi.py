@@ -14,7 +14,7 @@ def write_binary_matrix(f, mat):
     if isinstance(mat, torch.Tensor):
         assert mat.dim() == 2, "Input tensor must have 2 dimensions"
         # TODO(jpuigcerver): Avoid conversion to numpy.
-        mat = mat.detach().numpy()
+        mat = mat.detach().cpu().numpy()
     elif isinstance(mat, np.ndarray):
         assert mat.ndim == 2, "Input array must have 2 dimensions"
     else:
