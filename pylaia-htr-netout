@@ -18,7 +18,11 @@ from laia.engine.feeders import ImageFeeder, ItemFeeder
 from laia.experiments import Experiment
 from laia.losses.ctc_loss import transform_output
 from laia.utils import ImageToTensor
-from laia.utils.kaldi import ArchiveLatticeWriter, ArchiveMatrixWriter
+from laia.utils.kaldi import (
+    ArchiveLatticeWriter,
+    ArchiveMatrixWriter,
+    RotatingArchiveMatrixWriter,
+)
 
 
 if __name__ == "__main__":
@@ -60,11 +64,18 @@ if __name__ == "__main__":
     )
     add_argument(
         "--output_matrix",
-        type=argparse.FileType("wb"),
+        # type=argparse.FileType("wb"),
+        type=str,
         default=None,
         help="Path of the Kaldi's archive containing the output matrices "
         "(one for each sample), where each row represents a timestep and "
         "each column represents a CTC label",
+    )
+    add_argument(
+        "--max_samples",
+        type=int,
+        default=None,
+        help="Maximum number of samples-matrix to write per ark file",
     )
     add_argument(
         "--output_lattice",
@@ -109,7 +120,10 @@ if __name__ == "__main__":
 
     archive_writers = []
     if args.output_matrix is not None:
-        archive_writers.append(ArchiveMatrixWriter(args.output_matrix))
+        # archive_writers.append(ArchiveMatrixWriter(args.output_matrix))
+        archive_writers.append(
+            RotatingArchiveMatrixWriter(args.output_matrix, maxsamples=args.max_samples)
+        )
 
     if args.output_lattice is not None:
         archive_writers.append(

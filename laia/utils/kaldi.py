@@ -3,6 +3,7 @@ from __future__ import absolute_import
 import io
 import numpy as np
 import sys
+import os
 import torch
 
 from typing import Iterable, Tuple, Union
@@ -133,6 +134,68 @@ class ArchiveLatticeWriter(object):
         if self._negate:
             matrix = -matrix
         write_text_lattice(self._file, matrix, digits=self._digits)
+
+    def write_iterable(self, iterable):
+        """Write a collection of matrixes to the archive from an iterable.
+
+        Args:
+          iterable: iterable containing pairs of (key, matrix).
+        """
+        # type: Iterable[Tuple[str, Union[torch.Tensor, np.ndarray]]]) -> None
+        for key, mat in iterable:
+            self.write(key, mat)
+
+
+class RotatingArchiveMatrixWriter(object):
+    """Class to write a Kaldi's archive file containing binary matrixes, 
+    limited to a given size or number of lattices.
+    """
+
+    def __init__(self, f, maxsamples=None, maxsize=None):
+        #--- force f to be a str to handle multiple files
+        assert isinstance(f, str)
+        if maxsize != None:
+            raise NotImplemented("maxsize is not supported yet, use maxsamples instead")
+        self._file_id = 0
+        self._max = maxsamples
+        self._file_size = 0
+        self._current_name = ""
+        self._root, self._ext = os.path.splitext(f)
+        self._file = io.open(self._getfilename(), "wb")
+        self._scp_file = io.open(self._root + ".scp", "w")
+
+    def _getfilename(self):
+        self._current_name = "{0}{1}{2}".format(
+            self._root, "_" + str(self._file_id) if self._max else "", self._ext
+        )
+        return self._current_name
+
+    def write(self, key, matrix):
+        """Write a matrix with the given key to the archive.
+
+        Args:
+          key: the key for the given matrix.
+          matrix: the matrix to write.
+        """
+        if self._max is not None and self._file_size >= self._max:
+            self._file.close()
+            self._file_id += 1
+            self._file = io.open(self._getfilename(), "wb")
+            self._file_size = 0
+
+        if not isinstance(key, str):
+            raise ValueError("Key %r is not a string" % repr(key))
+        self._file.write(("%s " % key).encode("utf-8"))
+        self._scp_file.write(
+            "{0} {1}:{2}\n".format(key, self._current_name, self._file.tell())
+        )
+        self._file.write(b"\x00B")
+        write_binary_matrix(self._file, matrix)
+        self._file_size += 1
+
+    def __del__(self):
+        self._scp_file.close()
+        self._file.close()
 
     def write_iterable(self, iterable):
         """Write a collection of matrixes to the archive from an iterable.

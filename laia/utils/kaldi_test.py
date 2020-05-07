@@ -5,6 +5,11 @@ import numpy as np
 import torch
 import unittest
 
+try:
+    import unittest.mock as mock
+except ImportError:
+    import mock
+
 from laia.utils import kaldi
 
 
@@ -85,6 +90,77 @@ class TestArchiveMatrixWriter(unittest.TestCase):
         writer2.write_iterable(zip(["key1", "key2"], [x1, x2]))
 
         self.assertEqual(file2.getvalue(), file1.getvalue())
+
+
+class TestRotatingArchiveMatrixWriter(unittest.TestCase):
+    @mock.patch("laia.utils.kaldi.io.open")
+    def test_single_file(self, mock_file_open):
+        f = "./foo/bar.ark"
+        mock_file_open.side_effect = [io.BytesIO(), io.StringIO()]
+        x1 = torch.rand(7, 9, dtype=torch.float32)
+        x2 = torch.rand(8, 8, dtype=torch.float64)
+        writer = kaldi.RotatingArchiveMatrixWriter(f, maxsamples=None)
+        writer.write("key1", x1)
+        writer.write("longerkey", x2)
+        # Test written data
+        binary_data = writer._file.getvalue()
+        expected_size1 = 4 + 3 + 3 + 5 + 5 + x1.numel() * x1.element_size()
+        expected_size2 = 9 + 3 + 3 + 5 + 5 + x2.numel() * x2.element_size()
+        self.assertEqual(len(binary_data), expected_size1 + expected_size2)
+        self.assertEqual(binary_data[:7], b"key1 \x00B")
+        self.assertEqual(
+            binary_data[expected_size1 : (expected_size1 + 12)], b"longerkey \x00B"
+        )
+
+    @mock.patch("laia.utils.kaldi.io.open")
+    def test_rotate(self, mock_file_open):
+        f = "./foo/bar.ark"
+        mock_file_open.side_effect = [
+            io.BytesIO(),
+            io.StringIO(),
+            io.BytesIO(),
+            io.StringIO(),
+        ]
+        x1 = torch.rand(7, 9, dtype=torch.float32)
+        x2 = torch.rand(8, 8, dtype=torch.float64)
+        writer = kaldi.RotatingArchiveMatrixWriter(f, maxsamples=1)
+        writer.write("key1", x1)
+        # Test written data on first file
+        binary_data = writer._file.getvalue()
+        expected_size1 = 4 + 3 + 3 + 5 + 5 + x1.numel() * x1.element_size()
+        self.assertEqual(len(binary_data), expected_size1)
+        self.assertEqual(binary_data[:7], b"key1 \x00B")
+
+        writer.write("longerkey", x2)
+        # Test written data on second file
+        binary_data = writer._file.getvalue()
+        expected_size2 = 9 + 3 + 3 + 5 + 5 + x2.numel() * x2.element_size()
+        self.assertEqual(len(binary_data), expected_size2)
+        self.assertEqual(binary_data[:12], b"longerkey \x00B")
+        # Test number of files
+        self.assertEqual(1, writer._file_id)
+
+    @mock.patch("laia.utils.kaldi.io.open")
+    def test_write_iterable(self, mock_file_open):
+        f = "./foo/bar.ark"
+        x1 = torch.rand(7, 9, dtype=torch.float32)
+        x2 = torch.rand(8, 8, dtype=torch.float64)
+
+        mock_file_open.side_effect = [
+            io.BytesIO(),
+            io.StringIO(),
+            io.BytesIO(),
+            io.StringIO(),
+        ]
+        writer1 = kaldi.RotatingArchiveMatrixWriter(f, maxsamples=None)
+        writer1.write("key1", x1)
+        writer1.write("key2", x2)
+
+        writer2 = kaldi.RotatingArchiveMatrixWriter(f, maxsamples=None)
+        writer2.write_iterable(zip(["key1", "key2"], [x1, x2]))
+
+        self.assertEqual(writer1._file.getvalue(), writer2._file.getvalue())
+        self.assertEqual(writer1._scp_file.getvalue(), writer2._scp_file.getvalue())
 
 
 if __name__ == "__main__":
